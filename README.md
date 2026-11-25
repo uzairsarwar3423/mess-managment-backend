@@ -16,6 +16,12 @@ npm run dev                 # http://localhost:8080/health
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm test` | Vitest unit + integration tests (no real Supabase needed) |
 | `npm run build` / `npm start` | Compile to `dist/` and run it |
+| `npm run admin:create -- --email a@b.com --name "Name"` | Create the first super admin of a mess |
+| `npm run cloudinary:check` | Check the Cloudinary key can read, upload and delete |
+
+## Deploy
+
+Push to `main` and GitHub tests, builds and deploys to the VPS by itself. One-time setup: **[DEPLOY.md](DEPLOY.md)**.
 
 ## Database
 

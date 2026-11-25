@@ -1,0 +1,31 @@
+# Runs on the VPS in /opt/mess-backend (GitHub Actions copies this file there on every deploy).
+# Only the API runs in Docker. Your host Nginx (port 80/443, HTTPS) forwards mess.rapto.cloud to 127.0.0.1:8080.
+# Database = Supabase, files = Cloudinary: nothing else is needed on the server.
+#
+# Secrets: /opt/mess-backend/.env.production (created by hand once, never touched by deploys).
+# /opt/mess-backend/.env holds IMAGE (every deploy updates it by itself) and optionally API_HOST_PORT (default 8080).
+
+name: mess
+
+services:
+  api:
+    image: ${IMAGE:?IMAGE is not set - the deploy script writes it}
+    container_name: mess-api
+    env_file: .env.production
+    environment:
+      NODE_ENV: production
+      PORT: "8080"
+    # only reachable from the server itself (Nginx), never from the internet directly
+    ports:
+      - "127.0.0.1:${API_HOST_PORT:-8080}:8080"
+    restart: unless-stopped
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp
+    mem_limit: 512m
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
