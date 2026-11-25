@@ -129,7 +129,7 @@ jobs:
       - name: Validate image (non-root, no secrets, boots, health, graceful stop)
         run: bash deploy/ci/validate-image.sh mess-api:ci
       - name: Vulnerability scan (Trivy, fixable HIGH/CRITICAL fail the build)
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: mess-api:ci
           severity: HIGH,CRITICAL
