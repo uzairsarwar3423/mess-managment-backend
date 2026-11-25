@@ -43,10 +43,15 @@ CMD ["npm", "run", "dev"]
 
 # ---------------------------------------------------------------- runtime (production)
 FROM node:${NODE_VERSION}-alpine AS runtime
+# The app runs as `node dist/server.js`; package managers are never used at runtime. Removing the
+# npm/yarn/corepack bundled with the base image drops their (often unpatched) dependency trees, which
+# were the only HIGH findings of the Trivy scan.
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \
+           /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack \
+           /usr/local/bin/yarn /usr/local/bin/yarnpkg /opt/yarn-*
 WORKDIR /app
 ENV NODE_ENV=production \
-    PORT=8080 \
-    NPM_CONFIG_UPDATE_NOTIFIER=false
+    PORT=8080
 
 COPY --chown=node:node package.json ./
 COPY --from=prod-deps --chown=node:node /app/node_modules ./node_modules

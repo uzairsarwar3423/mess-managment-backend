@@ -20,6 +20,9 @@ grep -qE '^\.env' <<<"$listing" && fail ".env file found in image" || pass "no .
 grep -qxE 'src|tests|\.git' <<<"$listing" && fail "source/tests/.git copied into image" || pass "no source, tests or .git in image"
 grep -qxE 'typescript|vitest|tsx|pino-pretty' <<<"$listing" && fail "devDependencies present" || pass "no devDependencies"
 
+pm="$(docker run --rm --entrypoint sh "$IMAGE" -c 'ls /usr/local/lib/node_modules 2>/dev/null; command -v npm npx yarn corepack' || true)"
+[[ -z "$pm" ]] && pass "no package managers (npm/npx/yarn/corepack) in runtime image" || fail "package managers present: $pm"
+
 size="$(docker image inspect "$IMAGE" --format '{{.Size}}')"
 pass "image size $((size / 1024 / 1024)) MB"
 
