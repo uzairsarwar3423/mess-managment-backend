@@ -1,0 +1,27 @@
+# Secrets — never in an image
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+deploy/**/*.env
+
+# Build output / deps (rebuilt inside the image)
+node_modules
+dist
+coverage
+*.log
+
+# VCS, CI, editor, docs
+.git
+.github
+.gitignore
+.vscode
+.idea
+.claude
+docs
+*.md
+Dockerfile
+.dockerignore
+docker-compose*.yml
+deploy

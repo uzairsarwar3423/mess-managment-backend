@@ -5,3 +5,6 @@ dist/
 !.env.example
 *.log
 coverage/
+migrate.env
+monitor.env
+.deploy/

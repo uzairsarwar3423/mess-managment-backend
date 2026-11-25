@@ -1,0 +1,55 @@
+# Production stack for the VPS (copied to /opt/mess-backend/docker-compose.yml by the deploy workflow).
+#
+# - The database is Supabase (hosted) and files live in Cloudinary, so there is NO database, Redis
+#   or file-storage container here, and no volumes: nothing stateful runs on the VPS.
+# - Secrets: /opt/mess-backend/.env.production (created by hand, chmod 600, never touched by CI).
+# - API_IMAGE comes from /opt/mess-backend/.env, which deploy.sh manages (it holds only API_IMAGE).
+# - Port is bound to 127.0.0.1 only; the host Nginx terminates TLS and proxies to it.
+
+name: mess
+
+services:
+  api:
+    image: ${API_IMAGE:?API_IMAGE is not set - run deploy.sh}
+    env_file:
+      - path: .env.production
+        required: true
+    environment:
+      NODE_ENV: production
+      PORT: "8080"
+      # Old-space limit kept below the container memory limit so V8 GCs before the kernel OOM-kills.
+      NODE_OPTIONS: --max-old-space-size=384
+    ports:
+      - "127.0.0.1:${API_HOST_PORT:-8080}:8080"
+    restart: unless-stopped
+    init: true # Docker's tini as PID 1: forwards signals, reaps zombies
+    stop_grace_period: 15s # app drains connections for up to 10s
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      start_interval: 2s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+        reservations:
+          memory: 128M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+        tag: "mess-api"
+    labels:
+      com.mess.role: api

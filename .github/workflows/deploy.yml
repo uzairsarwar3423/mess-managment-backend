@@ -1,0 +1,154 @@
+# Continuous deployment: push to main -> CI -> image to GHCR (tagged with the commit SHA) -> VPS.
+#
+# Required repository secrets (Settings > Secrets and variables > Actions):
+#   VPS_HOST          server hostname or IP
+#   VPS_USER          deploy user (e.g. deploy)
+#   VPS_SSH_KEY       private key (ed25519) whose public key is in ~deploy/.ssh/authorized_keys
+#   VPS_KNOWN_HOSTS   output of `ssh-keyscan -p <port> <host>` (pins the server's host key)
+# Optional repository variables:
+#   VPS_PORT          SSH port (default 22)
+#   DEPLOY_PATH       app directory on the VPS (default /opt/mess-backend)
+#   PRODUCTION_URL    public base URL, https://mess.rapto.cloud (enables the public health check)
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  publish:
+    name: Build + push image
+    needs: ci
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.ref.outputs.image }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: ref
+        run: |
+          repo="ghcr.io/${GITHUB_REPOSITORY,,}"
+          echo "repo=$repo" >> "$GITHUB_OUTPUT"
+          echo "image=$repo:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: runtime
+          push: true
+          provenance: false
+          tags: |
+            ${{ steps.ref.outputs.image }}
+            ${{ steps.ref.outputs.repo }}:main
+          build-args: GIT_SHA=${{ github.sha }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    name: Deploy to VPS
+    needs: publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: production
+      url: ${{ vars.PRODUCTION_URL }}
+    # One production change at a time; never cancel a deployment half-way.
+    concurrency:
+      group: production
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      packages: read
+    env:
+      IMAGE: ${{ needs.publish.outputs.image }}
+      DEPLOY_PATH: ${{ vars.DEPLOY_PATH || '/opt/mess-backend' }}
+      SSH_PORT: ${{ vars.VPS_PORT || '22' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure SSH
+        env:
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/id_deploy && chmod 600 ~/.ssh/id_deploy
+          printf '%s\n' "$VPS_KNOWN_HOSTS" > ~/.ssh/known_hosts && chmod 644 ~/.ssh/known_hosts
+          cat > ~/.ssh/config <<EOF
+          Host vps
+            HostName $VPS_HOST
+            User $VPS_USER
+            Port $SSH_PORT
+            IdentityFile ~/.ssh/id_deploy
+            IdentitiesOnly yes
+            StrictHostKeyChecking yes
+            ServerAliveInterval 15
+          EOF
+
+      # Only these files are shipped. .env.production / migrate.env on the server are never touched.
+      - name: Upload deployment files
+        run: |
+          stage="$(mktemp -d)"
+          cp deploy/docker-compose.prod.yml "$stage/docker-compose.yml"
+          cp deploy/lib.sh deploy/deploy.sh deploy/rollback.sh deploy/migrate.sh deploy/monitor.sh "$stage/"
+          cp -r database/migrations "$stage/migrations"
+          chmod 755 "$stage"/*.sh
+          tar -C "$stage" -czf - . | ssh vps "set -e
+            cd '$DEPLOY_PATH'
+            rm -rf .incoming && mkdir .incoming && tar -xzf - -C .incoming
+            rm -rf migrations.old && { [ -d migrations ] && mv migrations migrations.old || true; }
+            mv .incoming/migrations migrations
+            mv -f .incoming/* .
+            rm -rf .incoming migrations.old"
+
+      - name: Deploy ${{ env.IMAGE }}
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Short-lived registry login (this job's token), removed again right after the deploy.
+          printf '%s' "$GHCR_TOKEN" | ssh vps "docker login ghcr.io -u '${{ github.actor }}' --password-stdin >/dev/null"
+          set +e
+          ssh vps "'$DEPLOY_PATH/deploy.sh' '$IMAGE'"
+          status=$?
+          ssh vps "docker logout ghcr.io >/dev/null" || true
+          exit $status
+
+      - name: Public health check
+        if: vars.PRODUCTION_URL != ''
+        run: |
+          curl -fsS --retry 10 --retry-delay 3 --retry-all-errors "${{ vars.PRODUCTION_URL }}/health/ready"
+          echo
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### Deployment ${{ job.status }}"
+            echo "- Image: \`$IMAGE\`"
+            echo "- Commit: ${{ github.sha }}"
+            echo "- Server state:"
+            echo '```'
+            ssh vps "tail -n 5 '$DEPLOY_PATH/.deploy/history.log'; docker ps --filter label=com.mess.role=api --format '{{.Image}}  {{.Status}}'" 2>/dev/null || echo "(unavailable)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
