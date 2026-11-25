@@ -54,7 +54,7 @@ export interface LedgerRow {
   id: string;
   method: string;
   amount: number | string;
-  transaction_id: string;
+  transaction_id: string | null;
   status: string;
   submitted_at: string;
   reviewed_at: string | null;

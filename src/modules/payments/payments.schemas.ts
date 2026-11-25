@@ -2,14 +2,18 @@ import { z } from 'zod';
 import { PAYMENT_METHODS, PAYMENT_STATUSES } from '../../config/constants';
 import { isoDate, pagination, uuid } from '../../common/schemas';
 
-/** NOTE: no `amount` or `method`: the server sets the amount (BR-09) and derives the method from the account. */
+/**
+ * NOTE: no `amount` or `method`: the server sets the amount (BR-09) and derives the method from the account.
+ * The transaction ID is OPTIONAL: the student proves the payment with the screenshot (the admin checks it by eye).
+ */
 export const submitPaymentBody = z
   .object({
     payment_account_id: uuid,
     transaction_id: z
       .string()
       .trim()
-      .regex(/^[A-Za-z0-9-]{6,40}$/, 'Transaction ID must be 6-40 letters, digits or dashes'),
+      .regex(/^[A-Za-z0-9-]{6,40}$/, 'Transaction ID must be 6-40 letters, digits or dashes')
+      .optional(),
     screenshot_public_id: z.string().trim().min(10).max(300),
   })
   .strict();

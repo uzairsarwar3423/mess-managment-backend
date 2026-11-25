@@ -19,7 +19,7 @@ export interface PaymentRow {
   method: PaymentMethod;
   paid_to: PaidTo;
   amount: number | string;
-  transaction_id: string;
+  transaction_id: string | null;
   screenshot_public_id: string;
   screenshot_url: string;
   screenshot_etag: string | null;
@@ -49,7 +49,7 @@ export interface NewPayment {
   method: PaymentMethod;
   paid_to: PaidTo;
   amount: string;
-  transaction_id: string;
+  transaction_id: string | null;
   screenshot_public_id: string;
   screenshot_url: string;
   screenshot_etag: string | null;
@@ -227,15 +227,19 @@ export async function findDuplicateSignals(payment: PaymentRow): Promise<{
     return { id: row.id, status: row.status, student_name: row.student?.full_name ?? '' };
   };
 
-  const sameTxn = await getDb()
-    .from('payments')
-    .select(select)
-    .eq('mess_id', payment.mess_id)
-    .ilike('transaction_id', payment.transaction_id)
-    .neq('id', payment.id)
-    .limit(10);
-  throwIfError(sameTxn.error);
-
+  // Old payments carry a transaction ID; new ones are proven by the screenshot only (no ID to compare).
+  let sameTxn: unknown[] = [];
+  if (payment.transaction_id) {
+    const res = await getDb()
+      .from('payments')
+      .select(select)
+      .eq('mess_id', payment.mess_id)
+      .ilike('transaction_id', payment.transaction_id)
+      .neq('id', payment.id)
+      .limit(10);
+    throwIfError(res.error);
+    sameTxn = (res.data as unknown[] | null) ?? [];
+  }
   let sameShot: unknown[] = [];
   if (payment.screenshot_etag) {
     const res = await getDb()
@@ -250,7 +254,7 @@ export async function findDuplicateSignals(payment: PaymentRow): Promise<{
   }
 
   return {
-    sameTransaction: ((sameTxn.data as unknown[] | null) ?? []).map(toHit),
+    sameTransaction: sameTxn.map(toHit),
     sameScreenshot: sameShot.map(toHit),
   };
 }

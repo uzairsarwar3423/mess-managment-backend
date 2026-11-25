@@ -166,6 +166,12 @@ describe('POST /student/payments', () => {
     expect(m.cld.api.resource).toHaveBeenCalledWith(PUBLIC_ID, { resource_type: 'image', type: 'authenticated' });
   });
 
+  it('accepts a payment proven by the screenshot alone (no transaction id)', async () => {
+    const res = await submit({ payment_account_id: ACCOUNT, screenshot_public_id: PUBLIC_ID });
+    expect(res.status).toBe(201);
+    expect(m.payments.insert).toHaveBeenCalledWith(expect.objectContaining({ transaction_id: null, amount: '8500.00' }));
+  });
+
   it.each([
     ['amount', { amount: 1 }],
     ['method', { method: 'bank' }],

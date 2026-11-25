@@ -13,6 +13,8 @@
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
     "admin:create": "tsx src/scripts/createSuperAdmin.ts",
+    "cloudinary:setup": "tsx src/scripts/setupCloudinary.ts",
+    "cloudinary:check": "tsx src/scripts/checkCloudinary.ts",
     "test": "vitest run",
     "test:watch": "vitest"
   },

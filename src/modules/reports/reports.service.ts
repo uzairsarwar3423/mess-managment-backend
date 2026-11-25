@@ -201,7 +201,7 @@ export async function paymentsPdf(auth: AuthContext, query: PaymentsPdfQuery, me
               student: r.student ? `${r.student.student_code} ${r.student.full_name}` : '',
               method: methodLabel(r.method),
               paidTo: [r.paid_to?.account_title, r.paid_to?.account_number].filter(Boolean).join(' - '),
-              transactionId: r.transaction_id,
+              transactionId: r.transaction_id ?? '-',
               amount: money(r.amount),
               status: statusLabel(r.status),
               reviewer: r.reviewer?.full_name ?? '',
@@ -252,7 +252,7 @@ export async function studentStatementPdf(auth: AuthContext, query: StatementPdf
           payments: payments.data.map((p) => ({
             date: dateLabel(localDate(p.submitted_at, config.timezone)),
             method: methodLabel(p.method),
-            transactionId: p.transaction_id,
+            transactionId: p.transaction_id ?? '-',
             amount: money(p.amount),
             status: statusLabel(p.status),
           })),

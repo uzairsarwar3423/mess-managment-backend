@@ -49,7 +49,7 @@ export async function submit(auth: AuthContext, body: SubmitPaymentBody) {
         merchant_name: account.merchant_name,
       },
       amount: config.monthlyFee.toFixed(2),
-      transaction_id: body.transaction_id,
+      transaction_id: body.transaction_id ?? null,
       screenshot_public_id: asset.publicId,
       screenshot_url: asset.secureUrl,
       screenshot_etag: asset.etag,

@@ -37,8 +37,10 @@ const schema = z.object({
   CLOUDINARY_CLOUD_NAME: z.string().min(1),
   CLOUDINARY_API_KEY: z.string().min(1),
   CLOUDINARY_API_SECRET: z.string().min(1),
-  CLOUDINARY_PRESET_PAYMENTS: z.string().min(1),
-  CLOUDINARY_PRESET_PROFILES: z.string().min(1),
+  // OPTIONAL. Leave empty (or delete the lines) to upload without upload presets: the backend then signs every
+  // rule itself (type, formats, public id) and verifies each image after upload, which is all this system needs.
+  CLOUDINARY_PRESET_PAYMENTS: z.preprocess((v) => (typeof v === 'string' && v.trim() === '' ? undefined : v), z.string().min(1).optional()),
+  CLOUDINARY_PRESET_PROFILES: z.preprocess((v) => (typeof v === 'string' && v.trim() === '' ? undefined : v), z.string().min(1).optional()),
   CLOUDINARY_ROOT_FOLDER: z.string().min(1).default('mess-dev'),
   UPLOAD_MAX_BYTES: z.coerce.number().int().positive().default(2 * 1024 * 1024),
 

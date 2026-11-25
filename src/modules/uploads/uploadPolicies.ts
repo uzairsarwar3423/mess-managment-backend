@@ -6,7 +6,8 @@ export type UploadPurpose = (typeof UPLOAD_PURPOSES)[number];
 export interface UploadPolicy {
   /** Sub-folder under the environment root: <root>/<kind>/<owner id>/<uuid> */
   kind: 'payments' | 'profiles';
-  preset: string;
+  /** Optional Cloudinary upload preset name; without one the signed parameters carry all the rules. */
+  preset: string | undefined;
   /** Cloudinary delivery type: payment screenshots are private (authenticated), avatars are public. */
   type: 'authenticated' | 'upload';
   formats: readonly string[];

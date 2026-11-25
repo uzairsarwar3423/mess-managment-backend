@@ -121,7 +121,7 @@ export async function listForAdmin(f: AdminListFilters): Promise<{ rows: Subscri
 
 export interface AdminDetail {
   row: SubscriptionRow;
-  payment: { id: string; transaction_id: string; method: string; amount: number | string; reviewed_at: string | null } | null;
+  payment: { id: string; transaction_id: string | null; method: string; amount: number | string; reviewed_at: string | null } | null;
   attendanceCount: number;
 }
 

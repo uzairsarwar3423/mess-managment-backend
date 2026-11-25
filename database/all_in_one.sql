@@ -1,6 +1,6 @@
 -- ============================================================================
 -- MESS DATABASE: ALL-IN-ONE SETUP (paste this whole file into Supabase > SQL Editor > Run)
--- Contains migrations 0001, 0002, 0003, 0004, 0005, 0006, 0008, 0009 and the starting data.
+-- Contains migrations 0001, 0002, 0003, 0004, 0005, 0006, 0008, 0009, 0010 and the starting data.
 -- Run it ONCE on an empty project.
 -- ============================================================================
 
@@ -939,6 +939,11 @@ grant execute on function
   admin_dashboard_counts(uuid, date, date, date, date),
   admin_list_students(uuid, date, text, boolean, text, date, text, integer, integer)
   to service_role;
+
+-- ---------- 0010_payment_transaction_id_optional.sql ----------
+-- 0010: students now prove a payment with the SCREENSHOT only. The transaction ID is optional (old rows keep theirs).
+-- The format check and the unique index ignore NULL values, so nothing else changes.
+alter table payments alter column transaction_id drop not null;
 
 -- ---------- seed: the one mess ----------
 with m as (

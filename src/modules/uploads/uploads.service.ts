@@ -23,7 +23,8 @@ export function createSignature(auth: AuthContext, purpose: UploadPurpose) {
     public_id: publicId,
     timestamp: String(Math.floor(now().getTime() / 1000)),
     type: policy.type,
-    upload_preset: policy.preset,
+    // With a preset its name is signed too; without one the signed values above are the whole rule set.
+    ...(policy.preset ? { upload_preset: policy.preset } : {}),
   };
   const signature = getCloudinary().utils.api_sign_request(params, env.CLOUDINARY_API_SECRET);
 
