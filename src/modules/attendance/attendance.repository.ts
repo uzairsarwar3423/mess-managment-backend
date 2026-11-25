@@ -23,6 +23,7 @@ export interface AttendanceWithRelations extends AttendanceRow {
 
 const COLUMNS =
   'id, mess_id, student_id, subscription_id, qr_code_id, meal_type, attendance_date, marked_at, source, marked_by, scan_distance_m';
+const WITH_QR = `${COLUMNS}, qr:qr_codes(label)`;
 const WITH_RELATIONS = `${COLUMNS}, student:students(id, student_code, full_name), qr:qr_codes(label)`;
 
 export interface NewAttendance {
@@ -79,10 +80,10 @@ export async function history(
   meal: MealType | undefined,
   rangeFrom: number,
   rangeTo: number,
-): Promise<{ rows: AttendanceRow[]; total: number }> {
+): Promise<{ rows: (AttendanceRow & { qr?: { label: string } | null })[]; total: number }> {
   let query = getDb()
     .from('attendance')
-    .select(COLUMNS, { count: 'exact' })
+    .select(WITH_QR, { count: 'exact' })
     .eq('student_id', studentId)
     .gte('attendance_date', from)
     .lte('attendance_date', to);
@@ -92,7 +93,7 @@ export async function history(
     .order('marked_at', { ascending: false })
     .range(rangeFrom, rangeTo);
   throwIfError(error);
-  return { rows: (data as unknown as AttendanceRow[] | null) ?? [], total: count ?? 0 };
+  return { rows: (data as unknown as (AttendanceRow & { qr?: { label: string } | null })[] | null) ?? [], total: count ?? 0 };
 }
 
 /** Everyone who marked a meal on a date (admin daily list). Bounded by the number of students. */

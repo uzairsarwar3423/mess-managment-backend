@@ -100,9 +100,22 @@ async function doScan(auth: AuthContext, body: ScanBody) {
     throw err;
   }
 
+  // The receipt the student shows to the mess staff and can save as an image (see the Student App).
+  let student: Awaited<ReturnType<typeof studentsRepository.findById>> = null;
+  try {
+    student = await studentsRepository.findById(auth.userId);
+  } catch {
+    /* the attendance is already saved; the receipt just carries less detail */
+  }
+  const attendance = toAttendanceDto({ ...row, qr: { label: qr.label } });
   return {
-    attendance: toAttendanceDto(row),
+    attendance,
     subscription: { end_date: subscription.end_date, days_remaining: daysRemaining(subscription.end_date, date) },
+    receipt: {
+      receipt_no: attendance.receipt_no,
+      mess_name: config.mess.name,
+      student: student ? { full_name: student.full_name, student_code: student.student_code } : null,
+    },
   };
 }
 
@@ -189,7 +202,8 @@ export async function historyFor(messId: string, studentId: string, query: Histo
 
   const range = toRange(query.page, query.limit);
   const { rows, total } = await repository.history(studentId, from, to, query.meal_type, range.from, range.to);
-  return { data: rows.map(toAttendanceDto), meta: buildMeta(query.page, query.limit, total) };
+  // mess_name lets the app draw a receipt for any past meal without another request.
+  return { data: rows.map(toAttendanceDto), meta: { ...buildMeta(query.page, query.limit, total), mess_name: config.mess.name } };
 }
 
 export const history = (auth: AuthContext, query: HistoryQuery) => historyFor(auth.messId, auth.userId, query);

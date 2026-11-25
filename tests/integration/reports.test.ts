@@ -171,9 +171,9 @@ describe('PDF: attendance-daily', () => {
     m.att.daily.mockImplementation(async (_mess: string, _date: string, meal: string) =>
       meal === 'lunch'
         ? [
-            { id: 'a2', marked_at: '2026-11-25T07:20:00Z', source: 'qr', scan_distance_m: 30, student: { id: 'u2', student_code: 'S00077', full_name: 'Bilal Ahmed' }, qr: { label: 'Table 5' } },
-            { id: 'a1', marked_at: '2026-11-25T07:00:00Z', source: 'qr', scan_distance_m: 40, student: { id: STUDENT, student_code: 'S00042', full_name: 'Ali Khan' }, qr: { label: 'Table 3' } },
-            { id: 'a0', marked_at: '2026-11-25T06:50:00Z', source: 'manual', scan_distance_m: null, student: { id: 'u3', student_code: 'S00078', full_name: 'Danish' }, qr: null },
+            { id: 'a2', attendance_date: '2026-11-25', marked_at: '2026-11-25T07:20:00Z', source: 'qr', scan_distance_m: 30, student: { id: 'u2', student_code: 'S00077', full_name: 'Bilal Ahmed' }, qr: { label: 'Table 5' } },
+            { id: 'a1', attendance_date: '2026-11-25', marked_at: '2026-11-25T07:00:00Z', source: 'qr', scan_distance_m: 40, student: { id: STUDENT, student_code: 'S00042', full_name: 'Ali Khan' }, qr: { label: 'Table 3' } },
+            { id: 'a0', attendance_date: '2026-11-25', marked_at: '2026-11-25T06:50:00Z', source: 'manual', scan_distance_m: null, student: { id: 'u3', student_code: 'S00078', full_name: 'Danish' }, qr: null },
           ]
         : [],
     );

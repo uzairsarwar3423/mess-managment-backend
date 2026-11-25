@@ -116,6 +116,17 @@ describe('POST /student/attendance/scan', () => {
     expect(res.body.data.subscription).toEqual({ end_date: '2026-12-09', days_remaining: 15 });
   });
 
+  it('returns a receipt (number, mess, student, table) the app can show and save', async () => {
+    m.students.findById.mockImplementation(async (sid: string) =>
+      sid === USER ? { id: USER, mess_id: MESS, email: 'x@example.com', is_active: true, full_name: 'Ali Khan', student_code: 'S00042' } : null,
+    );
+    const res = await scan();
+    expect(res.status).toBe(201);
+    expect(res.body.data.attendance).toMatchObject({ receipt_no: expect.stringMatching(/^MR-20261125-[0-9A-Z]{1,6}$/), qr_label: 'Table 3' });
+    expect(res.body.data.receipt).toMatchObject({ receipt_no: res.body.data.attendance.receipt_no, mess_name: 'Main Mess' });
+    expect(res.body.data.receipt.student).toEqual({ full_name: 'Ali Khan', student_code: 'S00042' });
+  });
+
   it('marks Dinner at 17:00 with the same QR code', async () => {
     setClock(() => new Date(DINNER_TIME));
     await scan();
@@ -328,8 +339,8 @@ describe('student reads', () => {
     const res = await api('get', '/student/attendance/history?meal_type=lunch&page=2&limit=30');
     expect(res.status).toBe(200);
     expect(m.att.history).toHaveBeenCalledWith(USER, '2026-10-27', '2026-11-25', 'lunch', 30, 59);
-    expect(res.body.meta).toEqual({ page: 2, limit: 30, total: 61, total_pages: 3 });
-    expect(res.body.data[0]).toEqual({ id: 'a1', meal_type: 'lunch', attendance_date: '2026-11-25', marked_at: '2026-11-25T07:00:00Z', source: 'qr' });
+    expect(res.body.meta).toEqual({ page: 2, limit: 30, total: 61, total_pages: 3, mess_name: 'Main Mess' });
+    expect(res.body.data[0]).toEqual({ id: 'a1', meal_type: 'lunch', attendance_date: '2026-11-25', marked_at: '2026-11-25T07:00:00Z', source: 'qr', receipt_no: 'MR-20261125-A1', qr_label: null });
   });
 
   it('history validates the range', async () => {
@@ -454,7 +465,7 @@ describe('admin attendance views', () => {
     expect(m.att.daily).toHaveBeenCalledWith(MESS, '2026-11-25', 'lunch');
     expect(res.body.data).toMatchObject({ date: '2026-11-25', meal_type: 'lunch', counts: { present: 1, eligible: 3, not_marked: 2 } });
     expect(res.body.data.records[0]).toEqual({
-      id: 'a1', student: { id: USER, student_code: 'S00042', full_name: 'Ali Khan' }, marked_at: '2026-11-25T07:00:00Z',
+      id: 'a1', receipt_no: 'MR-20261125-A1', student: { id: USER, student_code: 'S00042', full_name: 'Ali Khan' }, marked_at: '2026-11-25T07:00:00Z',
       source: 'qr', qr_label: 'Table 3', scan_distance_m: 42,
     });
     expect(res.body.data.not_marked).toBeUndefined();
